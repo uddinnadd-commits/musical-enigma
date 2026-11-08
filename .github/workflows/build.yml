@@ -17,13 +17,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # If the zip itself was uploaded to the repo (GitHub does NOT unpack zips),
+      # unpack it here so the build still works. Does nothing when the project
+      # files are already in the repo.
+      - name: Unpack uploaded source zip (if needed)
+        run: |
+          if [ -z "$(find . -maxdepth 3 -type f \( -name settings.gradle -o -name settings.gradle.kts \) -not -path './.git/*' | head -n 1)" ]; then
+            ZIP=$(find . -maxdepth 2 -type f -iname '*.zip' -not -path './.git/*' | head -n 1)
+            if [ -n "$ZIP" ]; then
+              echo "No Gradle project found, but found zip: $ZIP - unpacking it"
+              unzip -o -q "$ZIP" -x '.github/*'
+            fi
+          fi
+
       # Works whether the project sits at the repo root or inside a subfolder.
       - name: Find the Gradle project
         id: locate
         run: |
           SETTINGS=$(find . -maxdepth 3 -type f \( -name settings.gradle -o -name settings.gradle.kts \) -not -path './.git/*' | head -n 1)
           if [ -z "$SETTINGS" ]; then
-            echo "::error::No settings.gradle found in this repository. Upload the CONTENTS of usedtobe-mod-source.zip (build.gradle, settings.gradle, gradle.properties, src/ ...) - not just build.yml."
+            echo "::error::No settings.gradle found in this repository. Upload the CONTENTS of usedtobe-mod-source.zip (build.gradle, settings.gradle, gradle.properties, src/ ...) - not the zip file itself."
             echo "Repository contents:"
             ls -la
             exit 1
